@@ -84,3 +84,74 @@ OK
 ```
 
 비로그인 차단, 로그인 실패와 UI, 세션 해시 저장, 소유권, CSRF, 상태 변경, 세션 회전과 로그아웃 폐기, 만료, cascade 삭제와 서버 재시작 후 관계 저장을 검사했습니다. 세션 쿠키 값은 출력하지 않습니다.
+
+## 로그인부터 완료 상태 변경까지
+
+```bash
+GET /app/projects: 303 Location=/login
+POST /login (wrong password): 400
+POST /login (demo): 303 Location=/app/projects
+Set-Cookie: session=[masked]; HttpOnly; Max-Age=3600; Path=/; SameSite=lax
+POST /app/projects: 303 Location=/app/projects/1
+POST /app/projects/1/tasks: 303 Location=/app/tasks/1
+Before: 진행 중
+POST /app/tasks/1/state: 303
+After: 완료
+GET /app/projects/1: 200
+SQLite user/project/task: [('demo', '학습 계획', '미션 검토', 1)]
+POST /logout: 303
+GET /app/projects after logout: 303
+```
+
+로그인 후 프로젝트와 할 일을 생성하고 진행 중 상태를 완료로 바꿨습니다. 마지막 SQLite 조회는 회원, 프로젝트, 할 일의 FK를 JOIN한 결과입니다. Set-Cookie의 세션 값은 마스킹했습니다.
+
+## 패키지와 경로 정책
+
+Python 3.14.7, FastAPI 0.142.2, Uvicorn 0.54.0, SQLAlchemy 2.1.1, Jinja2 3.1.6, python-multipart 0.0.32에서 실행했습니다. requirements.txt에 주요 패키지 버전을 고정했습니다.
+
+| 경로 | 공개/보호 | 기능 |
+|---|---|---|
+| GET / | 공개 | 로그인 상태에 따라 메뉴 변경 |
+| GET/POST /login | 공개 | 로그인 폼과 세션 발급 |
+| POST /logout | 보호 | 세션 폐기 |
+| GET /app/projects | 보호 | 회원의 프로젝트 목록 |
+| GET /app/projects/new | 보호 | 프로젝트 등록 폼 |
+| POST /app/projects | 보호 | 프로젝트 생성 |
+| GET /app/projects/{id} | 보호 | 소유 회원과 연결된 할 일 표시 |
+| POST /app/projects/{id}/delete | 보호 | 프로젝트와 하위 할 일 삭제 |
+| GET /app/projects/{id}/tasks/new | 보호 | 할 일 등록 폼 |
+| POST /app/projects/{id}/tasks | 보호 | 할 일 생성 |
+| GET /app/tasks | 보호 | 회원의 모든 할 일 목록 |
+| GET /app/tasks/{id} | 보호 | 상세와 상태 표시 |
+| GET/POST /app/tasks/{id}/edit | 보호 | 수정 폼과 저장 |
+| POST /app/tasks/{id}/state | 보호 | 진행 중/완료 전환 |
+| POST /app/tasks/{id}/delete | 보호 | 할 일 삭제 |
+
+모든 보호 경로는 Depends(require_session) 또는 Depends(require_csrf)를 사용합니다. 쿠키를 확인한 optional_session이 DB에서 세션과 만료 시각을 조회하고 AuthContext를 반환합니다. 세션이 없으면 require_session에서 중단하고 로그인 화면으로 303 이동합니다. 변경 요청은 로그인 세션의 CSRF 값도 비교합니다. 단순히 UI 링크를 숨기는 것과 서버에서 접근을 막는 것은 다릅니다.
+
+세션은 1시간 유지되며 로그인 때 토큰을 새로 생성하고 기존 토큰을 폐기합니다. 로그아웃 후 과거 쿠키를 재전송해도 DB 세션이 없어 접근할 수 없습니다. 로컬 HTTP 실습이므로 쿠키의 Secure 속성은 설정하지 않았습니다. 외부 HTTPS로 배포할 때는 Secure를 적용하고 테스트 계정을 제거해야 합니다.
+
+## 관계와 상태 변경
+
+User와 Project는 1:N, Project와 Task는 1:N입니다. relationship/back_populates로 양방향을 연결했습니다. 프로젝트 상세에는 Project.owner.username과 Project.tasks를 함께 출력하고, 할 일 상세에는 Task.project의 이름을 표시합니다. 부모 삭제 정책은 프로젝트에 속한 작업을 함께 삭제하는 cascade이며 이유는 모델 주석에 있습니다.
+
+```mermaid
+erDiagram
+    User ||--o{ Project : owns
+    Project ||--o{ Task : contains
+    User ||--o{ AuthSession : authenticates
+```
+
+세 도메인 모델과 별도로 AuthSession은 인증 상태를 보관합니다. 모든 핵심 데이터와 관계, 세션은 SQLite에 저장합니다. 다른 회원의 id를 알아도 TaskService의 소유권 검사에서 데이터가 없는 것과 같은 404로 처리합니다.
+
+완료 상태는 TaskService.set_completed에서 변경합니다. 입력을 true/false로 고정하고 명시한 상태를 저장하므로 같은 요청을 두 번 보내도 상태가 다시 뒤집히지 않습니다. 저장 후 상세로 303 이동해 상태를 표시합니다. 라우터는 요청과 화면 전환, 서비스는 소유권과 상태 정책, 저장소는 SQLAlchemy Session 접근을 담당합니다.
+
+사용자는 로그인, 프로젝트 등록, 할 일 등록, 상세 확인, 완료 전환 순서로 이용합니다. 개발자 관점에서는 Cookie/Form, Depends의 세션 검사, 서비스 검증, Repository의 DB 저장, TemplateResponse와 RedirectResponse로 이어집니다.
+
+비밀번호는 [Python hashlib](https://docs.python.org/3/library/hashlib.html#hashlib.pbkdf2_hmac)의 PBKDF2-HMAC-SHA256에 16바이트 무작위 salt와 600,000회 반복을 적용했습니다. 세션 토큰은 무작위로 발급하고 인증 조회용 해시만 저장하므로 비밀번호 해시의 느린 검증과 별도로 처리합니다.
+
+검사는 다음과 같이 실행합니다.
+
+```bash
+python -m unittest discover -s tests -v
+```
