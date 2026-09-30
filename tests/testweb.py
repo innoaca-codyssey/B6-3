@@ -123,6 +123,9 @@ class WebTests(unittest.TestCase):
         self.assertIn('HttpOnly', cookie)
         self.assertIn('SameSite=lax', cookie)
         self.assertIn('demo님 환영합니다', self.client.request('/')[2])
+        status, _, failed = self.client.request('/login', {'username': 'demo', 'password': 'wrong'})
+        self.assertEqual(status, 400)
+        self.assertIn('demo님 환영합니다', failed)
         with closing(sqlite3.connect(self.db)) as db, db:
             password = db.execute("SELECT password_hash FROM user WHERE username='demo'").fetchone()[0]
             stored = db.execute('SELECT token_hash FROM auth_session').fetchone()[0]

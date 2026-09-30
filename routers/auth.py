@@ -20,7 +20,7 @@ def login(request: Request, username: str = Form(''), password: str = Form(''), 
     try:
         token = AuthService(db).login(username, password, session)
     except ValueError as error:
-        return templates.TemplateResponse(request=request, name='login.html', context={'auth': None, 'message': str(error)}, status_code=400)
+        return templates.TemplateResponse(request=request, name='login.html', context={'auth': AuthService(db).context(session), 'message': str(error)}, status_code=400)
     response = RedirectResponse('/app/projects', status_code=303)
     response.set_cookie('session', token, max_age=3600, httponly=True, samesite='lax', path='/')
     return response

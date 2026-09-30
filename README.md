@@ -155,3 +155,24 @@ erDiagram
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## 로그인 실패 화면의 기존 세션
+
+```bash
+$ .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -v
+test_anonymous_and_wrong_password (testweb.WebTests.test_anonymous_and_wrong_password) ... ok
+test_complete_workflow_relations_and_idempotent_state (testweb.WebTests.test_complete_workflow_relations_and_idempotent_state) ... ok
+test_csrf_validation_missing_and_escaped_content (testweb.WebTests.test_csrf_validation_missing_and_escaped_content) ... ok
+test_expired_session_and_project_cascade (testweb.WebTests.test_expired_session_and_project_cascade) ... ok
+test_login_ui_cookie_and_hashed_storage (testweb.WebTests.test_login_ui_cookie_and_hashed_storage) ... ok
+test_logout_revokes_replayed_cookie_and_session_rotation (testweb.WebTests.test_logout_revokes_replayed_cookie_and_session_rotation) ... ok
+test_other_member_cannot_read_or_change (testweb.WebTests.test_other_member_cannot_read_or_change) ... ok
+test_relations_persist_after_restart (testweb.WebTests.test_relations_persist_after_restart) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 3.929s
+
+OK
+```
+
+이미 로그인한 상태에서 다른 로그인에 실패해도 기존 세션은 유효합니다. 오류 화면도 해당 회원의 메뉴를 유지하도록 수정하고 검사했습니다.
