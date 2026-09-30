@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ task.title }}</h1>
+<dl><dt>ID</dt><dd>{{ task.id }}</dd><dt>제목</dt><dd>{{ task.title }}</dd><dt>내용</dt><dd><pre>{{ task.description }}</pre></dd><dt>작성일시 (UTC)</dt><dd>{{ task.created_at }}</dd></dl>
+<p><a href="/tasks/{{ task.id }}/edit">수정</a> <a href="/tasks">목록으로</a></p>
+<form method="post" action="/tasks/{{ task.id }}/delete"><button type="submit">삭제</button></form>
+{% endblock %}

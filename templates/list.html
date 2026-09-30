@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>할 일 목록</h1>
+<ul>{% for task in tasks %}<li><a href="/tasks/{{ task.id }}">{{ task.title }}</a></li>{% else %}<li>등록된 할 일이 없습니다.</li>{% endfor %}</ul>
+<a href="/tasks/new">새 할 일 등록</a>
+{% endblock %}

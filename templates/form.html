@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ '할 일 수정' if task else '할 일 등록' }}</h1>
+<form method="post" action="{{ '/tasks/' ~ task.id ~ '/edit' if task else '/tasks' }}">
+<p><label>제목 <input name="title" value="{{ task.title if task else '' }}" required maxlength="100"></label></p>
+<p><label>내용 <textarea name="description" required maxlength="2000">{{ task.description if task else '' }}</textarea></label></p>
+<button type="submit">저장</button> <a href="/tasks">취소</a>
+</form>
+{% endblock %}
