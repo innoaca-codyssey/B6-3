@@ -36,3 +36,51 @@ Python 3.14.7
 ```
 
 B6-2의 소스와 고정된 패키지 버전을 기반으로 별도 제출 저장소에서 확장합니다.
+
+## 패키지 설치
+
+```bash
+Resolved 18 packages in 58ms
+Installed 18 packages in 76ms
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.1
+ + click==8.5.0
+ + fastapi==0.142.2
+ + h11==0.16.0
+ + idna==3.20
+ + jinja2==3.1.6
+ + markupsafe==3.0.3
+ + opentelemetry-api==1.45.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + python-multipart==0.0.32
+ + sqlalchemy==2.1.1
+ + starlette==1.7.0
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + uvicorn==0.54.0
+```
+
+B6-2와 같은 고정 버전의 허용 패키지를 설치했습니다. 인증 토큰 발급과 비밀번호 해시는 Python 표준 라이브러리를 사용합니다.
+
+## 인증과 관계 검증
+
+```bash
+$ .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -v
+test_anonymous_and_wrong_password (testweb.WebTests.test_anonymous_and_wrong_password) ... ok
+test_complete_workflow_relations_and_idempotent_state (testweb.WebTests.test_complete_workflow_relations_and_idempotent_state) ... ok
+test_csrf_validation_missing_and_escaped_content (testweb.WebTests.test_csrf_validation_missing_and_escaped_content) ... ok
+test_expired_session_and_project_cascade (testweb.WebTests.test_expired_session_and_project_cascade) ... ok
+test_login_ui_cookie_and_hashed_storage (testweb.WebTests.test_login_ui_cookie_and_hashed_storage) ... ok
+test_logout_revokes_replayed_cookie_and_session_rotation (testweb.WebTests.test_logout_revokes_replayed_cookie_and_session_rotation) ... ok
+test_other_member_cannot_read_or_change (testweb.WebTests.test_other_member_cannot_read_or_change) ... ok
+test_relations_persist_after_restart (testweb.WebTests.test_relations_persist_after_restart) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 2.967s
+
+OK
+```
+
+비로그인 차단, 로그인 실패와 UI, 세션 해시 저장, 소유권, CSRF, 상태 변경, 세션 회전과 로그아웃 폐기, 만료, cascade 삭제와 서버 재시작 후 관계 저장을 검사했습니다. 세션 쿠키 값은 출력하지 않습니다.

@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block content %}<h1>내 프로젝트</h1>
+<ul>{% for project in projects %}<li><a href="/app/projects/{{ project.id }}">{{ project.name }}</a> (할 일 {{ project.tasks|length }}개)</li>{% else %}<li>등록된 프로젝트가 없습니다.</li>{% endfor %}</ul>
+<a href="/app/projects/new">프로젝트 등록</a>{% endblock %}

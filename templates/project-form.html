@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block content %}<h1>프로젝트 등록</h1><form method="post" action="/app/projects">
+<input type="hidden" name="csrf" value="{{ auth.csrf }}"><label>이름 <input name="name" required maxlength="100"></label>
+<button type="submit">저장</button> <a href="/app/projects">취소</a></form>{% endblock %}

@@ -1,6 +1,2 @@
 {% extends 'base.html' %}
-{% block content %}
-<h1>할 일 목록</h1>
-<ul>{% for task in tasks %}<li><a href="/tasks/{{ task.id }}">{{ task.title }}</a></li>{% else %}<li>등록된 할 일이 없습니다.</li>{% endfor %}</ul>
-<a href="/tasks/new">새 할 일 등록</a>
-{% endblock %}
+{% block content %}<h1>할 일 목록</h1><ul>{% for task in tasks %}<li><a href="/app/tasks/{{ task.id }}">{{ task.title }}</a> | {{ task.project_name }} | {{ '완료' if task.completed else '진행 중' }}</li>{% else %}<li>등록된 할 일이 없습니다.</li>{% endfor %}</ul><a href="/app/projects">프로젝트 보기</a>{% endblock %}

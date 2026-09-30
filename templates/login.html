@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}<h1>로그인</h1>
+{% if message %}<p role="alert">{{ message }}</p>{% endif %}
+<form method="post" action="/login"><p><label>ID <input name="username" required maxlength="40" autocomplete="username"></label></p>
+<p><label>비밀번호 <input type="password" name="password" required maxlength="1024" autocomplete="current-password"></label></p>
+<button type="submit">로그인</button></form>
+{% endblock %}

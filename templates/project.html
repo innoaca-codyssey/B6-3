@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block content %}<h1>{{ project.name }}</h1><p>회원: {{ project.owner }}</p>
+<ul>{% for task in project.tasks %}<li><a href="/app/tasks/{{ task.id }}">{{ task.title }}</a>: {{ '완료' if task.completed else '진행 중' }}</li>{% else %}<li>할 일이 없습니다.</li>{% endfor %}</ul>
+<p><a href="/app/projects/{{ project.id }}/tasks/new">할 일 등록</a> <a href="/app/projects">목록으로</a></p>
+<form method="post" action="/app/projects/{{ project.id }}/delete"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button type="submit">프로젝트와 할 일 삭제</button></form>{% endblock %}
