@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 import hashlib
 import secrets
+import re
+from sqlalchemy.exc import IntegrityError
 from auth.password import hash_password, verify_password
 from models.task import AuthSession, User, utcnow
 from repositories.auth import AuthRepository
@@ -28,8 +30,21 @@ class AuthService:
             if self.repository.user(username) is None:
                 self.repository.save(User(username=username, password_hash=hash_password('practice1234')))
 
+    def signup(self, username, password):
+        username = username.strip().lower()
+        if not re.fullmatch(r'[a-z0-9_.-]{3,40}', username):
+            raise ValueError('ID는 영문 소문자, 숫자, _, ., -로 3~40자 입력하세요')
+        if self.repository.user(username) is not None:
+            raise ValueError('이미 사용 중인 ID입니다')
+        user = User(username=username, password_hash=hash_password(password))
+        try:
+            self.repository.save(user)
+        except IntegrityError:
+            raise ValueError('이미 사용 중인 ID입니다') from None
+        return user
+
     def login(self, username, password, old_token=None):
-        user = self.repository.user(username)
+        user = self.repository.user(username.strip().lower())
         if user is None or not verify_password(password, user.password_hash):
             raise ValueError('ID 또는 비밀번호가 올바르지 않습니다')
         if old_token:

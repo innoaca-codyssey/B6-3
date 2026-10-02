@@ -15,8 +15,15 @@ class TaskRepository:
     def get(self, identifier):
         return self.session.get(Task, identifier)
 
-    def all(self, user_id):
-        return self.session.scalars(select(Task).join(Task.project).where(Project.user_id == user_id).order_by(Task.created_at.desc(), Task.id.desc())).all()
+    def all(self, user_id, query='', completed=None, project_id=None):
+        statement = select(Task).join(Task.project).where(Project.user_id == user_id)
+        if query:
+            statement = statement.where(Task.title.contains(query, autoescape=True))
+        if completed is not None:
+            statement = statement.where(Task.completed == completed)
+        if project_id is not None:
+            statement = statement.where(Task.project_id == project_id)
+        return self.session.scalars(statement.order_by(Task.created_at.desc(), Task.id.desc())).all()
 
     def save(self, row):
         self.session.add(row)

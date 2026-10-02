@@ -129,7 +129,7 @@ class WebTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as db, db:
             password = db.execute("SELECT password_hash FROM user WHERE username='demo'").fetchone()[0]
             stored = db.execute('SELECT token_hash FROM auth_session').fetchone()[0]
-        self.assertTrue(password.startswith('pbkdf2_sha256$600000$'))
+        self.assertTrue(password.startswith('$2b$12$'))
         self.assertNotEqual(password, 'practice1234')
         self.assertTrue(stored == hashlib.sha256(self.client.token().encode()).hexdigest())
 
@@ -192,6 +192,52 @@ class WebTests(unittest.TestCase):
         self.__class__.start()
         self.assertIn('첫 할 일', self.client.request(project)[2])
         self.assertIn('검증 프로젝트', self.client.request(task)[2])
+
+    def test_signup_hash_duplicate_csrf_and_login(self):
+        self.assertEqual(self.client.request('/signup', {'username': 'newmember', 'password': 'securepass123'})[0], 403)
+        body = self.client.request('/signup')[2]
+        csrf = re.search(r'name="csrf" value="([^"]+)"', body)[1]
+        data = {'username': ' NewMember ', 'password': 'securepass123', 'csrf': csrf}
+        self.assertEqual(self.client.request('/signup', data)[0], 303)
+        body = self.client.request('/signup')[2]
+        data['csrf'] = re.search(r'name="csrf" value="([^"]+)"', body)[1]
+        self.assertIn('이미 사용 중인', self.client.request('/signup', data)[2])
+        with closing(sqlite3.connect(self.db)) as db:
+            encoded = db.execute("SELECT password_hash FROM user WHERE username='newmember'").fetchone()[0]
+        self.assertTrue(encoded.startswith('$2b$12$'))
+        self.assertNotIn('securepass123', encoded)
+        self.assertEqual(self.client.request('/login', {'username': 'NEWMEMBER', 'password': 'securepass123'})[0], 303)
+        self.assertIn('newmember님 환영합니다', self.client.request('/')[2])
+
+    def test_signup_validation_utf8_limit_and_legacy_password(self):
+        body = self.client.request('/signup')[2]
+        csrf = re.search(r'name="csrf" value="([^"]+)"', body)[1]
+        for username, password in [('bad name', 'practice1234'), ('validmember', 'short'), ('validmember', '가' * 3), ('validmember', '가' * 25)]:
+            self.assertEqual(self.client.request('/signup', {'username': username, 'password': password, 'csrf': csrf})[0], 400)
+        from auth.password import verify_password
+        salt = bytes.fromhex('00' * 16)
+        digest = hashlib.pbkdf2_hmac('sha256', b'oldpassword', salt, 600000).hex()
+        encoded = 'pbkdf2_sha256$600000$' + salt.hex() + '$' + digest
+        self.assertTrue(verify_password('oldpassword', encoded))
+        self.assertFalse(verify_password('wrong', encoded))
+        self.assertFalse(verify_password('bad', 'malformed'))
+        from auth.password import hash_password
+        self.assertTrue(verify_password('가' * 24, hash_password('가' * 24)))
+
+    def test_search_filters_and_member_isolation(self):
+        project, task, csrf = self.create()
+        self.client.request(task + '/edit', {'title': '예산 100%_완료', 'description': '내용', 'csrf': csrf})
+        self.client.request(task + '/state', {'completed': 'true', 'csrf': csrf})
+        project_id = project.rsplit('/', 1)[1]
+        self.assertIn('예산 100%_완료</a>', self.client.request('/app/tasks?' + urllib.parse.urlencode({'q': '%_', 'completed': 'true', 'project_id': project_id}))[2])
+        self.assertNotIn('예산 100%_완료</a>', self.client.request('/app/tasks?completed=false')[2])
+        self.assertIn('예산 100%_완료</a>', self.client.request('/app/tasks?project_id=')[2])
+        self.assertEqual(self.client.request('/app/tasks?completed=invalid')[0], 400)
+        self.assertEqual(self.client.request('/app/tasks?project_id=invalid')[0], 400)
+        other = Client(self.url)
+        other.login('guest')
+        self.assertNotIn('예산 100%_완료', other.request('/app/tasks?q=100')[2])
+        self.assertEqual(other.request('/app/tasks?project_id=' + project_id)[0], 404)
 
 
 if __name__ == '__main__':

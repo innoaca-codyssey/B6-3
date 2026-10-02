@@ -22,7 +22,7 @@ http://localhost:8001 을 엽니다. DB 파일은 프로젝트 루트의 task.db
 | demo | practice1234 |
 | guest | practice1234 |
 
-처음 실행할 때 테스트 회원을 DB에 생성합니다. 비밀번호는 무작위 salt를 사용하는 PBKDF2 해시로 저장합니다. 이 계정은 로컬 실습용입니다.
+처음 실행할 때 테스트 회원을 DB에 생성합니다. 신규 계정의 비밀번호는 무작위 salt를 사용하는 bcrypt cost 12 해시로 저장합니다. 이 계정은 로컬 실습용입니다.
 
 ## 인증 방식
 
@@ -62,7 +62,7 @@ Installed 18 packages in 76ms
  + uvicorn==0.54.0
 ```
 
-B6-2와 같은 고정 버전의 허용 패키지를 설치했습니다. 인증 토큰 발급과 비밀번호 해시는 Python 표준 라이브러리를 사용합니다.
+B6-2와 같은 고정 버전의 허용 패키지를 설치했습니다. 인증 토큰은 Python 표준 라이브러리로 발급하며, 보너스에서 bcrypt 5.0.0을 추가했습니다.
 
 ## 인증과 관계 검증
 
@@ -107,12 +107,13 @@ GET /app/projects after logout: 303
 
 ## 패키지와 경로 정책
 
-Python 3.14.7, FastAPI 0.142.2, Uvicorn 0.54.0, SQLAlchemy 2.1.1, Jinja2 3.1.6, python-multipart 0.0.32에서 실행했습니다. requirements.txt에 주요 패키지 버전을 고정했습니다.
+Python 3.14.7, FastAPI 0.142.2, Uvicorn 0.54.0, SQLAlchemy 2.1.1, Jinja2 3.1.6, python-multipart 0.0.32, bcrypt 5.0.0에서 실행했습니다. requirements.txt에 주요 패키지 버전을 고정했습니다.
 
 | 경로 | 공개/보호 | 기능 |
 |---|---|---|
 | GET / | 공개 | 로그인 상태에 따라 메뉴 변경 |
 | GET/POST /login | 공개 | 로그인 폼과 세션 발급 |
+| GET/POST /signup | 공개 | CSRF 확인 후 회원가입 |
 | POST /logout | 보호 | 세션 폐기 |
 | GET /app/projects | 보호 | 회원의 프로젝트 목록 |
 | GET /app/projects/new | 보호 | 프로젝트 등록 폼 |
@@ -148,7 +149,7 @@ erDiagram
 
 사용자는 로그인, 프로젝트 등록, 할 일 등록, 상세 확인, 완료 전환 순서로 이용합니다. 개발자 관점에서는 Cookie/Form, Depends의 세션 검사, 서비스 검증, Repository의 DB 저장, TemplateResponse와 RedirectResponse로 이어집니다.
 
-비밀번호는 [Python hashlib](https://docs.python.org/3/library/hashlib.html#hashlib.pbkdf2_hmac)의 PBKDF2-HMAC-SHA256에 16바이트 무작위 salt와 600,000회 반복을 적용했습니다. 세션 토큰은 무작위로 발급하고 인증 조회용 해시만 저장하므로 비밀번호 해시의 느린 검증과 별도로 처리합니다.
+기본 미션에서 사용한 기존 비밀번호는 [Python hashlib](https://docs.python.org/3/library/hashlib.html#hashlib.pbkdf2_hmac)의 PBKDF2-HMAC-SHA256에 16바이트 무작위 salt와 600,000회 반복을 적용했습니다. 세션 토큰은 무작위로 발급하고 인증 조회용 해시만 저장하므로 비밀번호 해시의 느린 검증과 별도로 처리합니다.
 
 검사는 다음과 같이 실행합니다.
 
@@ -176,3 +177,27 @@ OK
 ```
 
 이미 로그인한 상태에서 다른 로그인에 실패해도 기존 세션은 유효합니다. 오류 화면도 해당 회원의 메뉴를 유지하도록 수정하고 검사했습니다.
+
+## 보너스: 회원가입과 검색/필터
+
+```bash
+$ .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -v
+test_anonymous_and_wrong_password (testweb.WebTests.test_anonymous_and_wrong_password) ... ok
+test_complete_workflow_relations_and_idempotent_state (testweb.WebTests.test_complete_workflow_relations_and_idempotent_state) ... ok
+test_csrf_validation_missing_and_escaped_content (testweb.WebTests.test_csrf_validation_missing_and_escaped_content) ... ok
+test_expired_session_and_project_cascade (testweb.WebTests.test_expired_session_and_project_cascade) ... ok
+test_login_ui_cookie_and_hashed_storage (testweb.WebTests.test_login_ui_cookie_and_hashed_storage) ... ok
+test_logout_revokes_replayed_cookie_and_session_rotation (testweb.WebTests.test_logout_revokes_replayed_cookie_and_session_rotation) ... ok
+test_other_member_cannot_read_or_change (testweb.WebTests.test_other_member_cannot_read_or_change) ... ok
+test_relations_persist_after_restart (testweb.WebTests.test_relations_persist_after_restart) ... ok
+test_search_filters_and_member_isolation (testweb.WebTests.test_search_filters_and_member_isolation) ... ok
+test_signup_hash_duplicate_csrf_and_login (testweb.WebTests.test_signup_hash_duplicate_csrf_and_login) ... ok
+test_signup_validation_utf8_limit_and_legacy_password (testweb.WebTests.test_signup_validation_utf8_limit_and_legacy_password) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 6.982s
+
+OK
+```
+
+GET /signup에서 회원가입 폼을 열고 POST /signup 후 /login으로 이동합니다. ID는 소문자로 정규화한 3~40자 영문/숫자/._-이며 중복을 차단합니다. 비밀번호는 8자 이상이면서 UTF-8 72바이트 이내이며, bcrypt 5.0.0의 cost 12로 해싱합니다. 기존 PBKDF2 해시는 로그인 검증을 유지합니다. 가입 폼의 쿠키와 토큰을 비교하여 CSRF를 확인하고 비밀번호는 오류 화면에 돌려주지 않습니다. /app/tasks?q=&completed=true|false&project_id=에서 제목/상태/프로젝트를 함께 검색합니다. 검색 쿼리에도 회원 ID를 적용하여 타인의 할 일을 노출하지 않습니다. 빈 프로젝트 값은 전체이며 타인 프로젝트 ID는 404입니다. 실제 HTTP 검사 11개에서 회원가입/로그인, 중복/길이/CSRF, 권한 경계와 기존 흐름을 확인했습니다. bcrypt 사용법: https://github.com/pyca/bcrypt . OAuth2 소셜 로그인과 외부 클라우드 배포는 외부 앱/배포 계정 설정을 기다리고 있습니다.
