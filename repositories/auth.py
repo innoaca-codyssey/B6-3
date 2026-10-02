@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from models.task import AuthSession, User
 
 class AuthRepository:
@@ -13,7 +14,11 @@ class AuthRepository:
 
     def save(self, row):
         self.db.add(row)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise
 
     def delete(self, row):
         self.db.delete(row)

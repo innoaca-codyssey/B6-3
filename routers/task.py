@@ -45,8 +45,12 @@ def create_task(identifier: int, title: str = Form(''), description: str = Form(
     return RedirectResponse(f'/app/tasks/{task.id}', status_code=303)
 
 @router.get('/tasks')
-def listing(request: Request, auth=Depends(require_session), db=Depends(get_db)):
-    return render(request, 'list.html', auth, tasks=TaskService(db, auth.user_id).list())
+def listing(request: Request, q: str = '', completed: str = '', project_id: str = '', auth=Depends(require_session), db=Depends(get_db)):
+    if project_id and (not project_id.isascii() or not project_id.isdecimal()):
+        raise ValueError('프로젝트 ID는 숫자로 입력하세요')
+    project_id = int(project_id) if project_id else None
+    service = TaskService(db, auth.user_id)
+    return render(request, 'list.html', auth, tasks=service.list(q, completed, project_id), projects=service.projects(), q=q.strip(), completed=completed, project_id=project_id)
 
 @router.get('/tasks/{identifier}')
 def detail(identifier: int, request: Request, auth=Depends(require_session), db=Depends(get_db)):

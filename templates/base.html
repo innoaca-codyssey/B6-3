@@ -6,7 +6,7 @@
 {% if auth %}
  | <a href="/app/projects">프로젝트</a> | <a href="/app/tasks">할 일</a> | {{ auth.username }}님 환영합니다
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ auth.csrf }}"><button type="submit">로그아웃</button></form>
-{% else %} | <a href="/login">로그인</a>{% endif %}</nav>
+{% else %} | <a href="/login">로그인</a> | <a href="/signup">회원가입</a>{% endif %}</nav>
 <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

@@ -51,8 +51,14 @@ class TaskService:
     def delete_project(self, identifier):
         self.repository.delete(self.require_project(identifier))
 
-    def list(self):
-        return [self.view(t) for t in self.repository.all(self.user_id)]
+    def list(self, query='', completed='', project_id=None):
+        query = query.strip()
+        if len(query) > 100 or completed not in ('', 'true', 'false'):
+            raise ValueError('검색어는 100자 이내, 상태는 true 또는 false를 사용하세요')
+        if project_id is not None:
+            self.require_project(project_id)
+        state = None if not completed else completed == 'true'
+        return [self.view(t) for t in self.repository.all(self.user_id, query, state, project_id)]
 
     def require(self, identifier):
         task = self.repository.get(identifier)
