@@ -201,3 +201,38 @@ OK
 ```
 
 GET /signup에서 회원가입 폼을 열고 POST /signup 후 /login으로 이동합니다. ID는 소문자로 정규화한 3~40자 영문/숫자/._-이며 중복을 차단합니다. 비밀번호는 8자 이상이면서 UTF-8 72바이트 이내이며, bcrypt 5.0.0의 cost 12로 해싱합니다. 기존 PBKDF2 해시는 로그인 검증을 유지합니다. 가입 폼의 쿠키와 토큰을 비교하여 CSRF를 확인하고 비밀번호는 오류 화면에 돌려주지 않습니다. /app/tasks?q=&completed=true|false&project_id=에서 제목/상태/프로젝트를 함께 검색합니다. 검색 쿼리에도 회원 ID를 적용하여 타인의 할 일을 노출하지 않습니다. 빈 프로젝트 값은 전체이며 타인 프로젝트 ID는 404입니다. 실제 HTTP 검사 11개에서 회원가입/로그인, 중복/길이/CSRF, 권한 경계와 기존 흐름을 확인했습니다. bcrypt 사용법: https://github.com/pyca/bcrypt . OAuth2 소셜 로그인과 외부 클라우드 배포는 외부 앱/배포 계정 설정을 기다리고 있습니다.
+
+## 잘못된 CSRF 문자열 재현
+
+가입 폼과 인증 후 프로젝트 등록에 비ASCII CSRF 값을 전송하면 요청 거부 대신 서버 오류가 발생했습니다. [hmac.compare_digest](https://docs.python.org/3/library/hmac.html#hmac.compare_digest)의 문자열 비교는 ASCII 입력을 요구합니다. 유효한 토큰은 URL-safe ASCII로 생성되지만 잘못된 폼 값을 비교 전에 검증하지 않았습니다.
+
+```text
+$ .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -k non_ascii_csrf -v
+test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) ... 
+  test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) (route='signup') ... FAIL
+  test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) (route='authenticated-action') ... FAIL
+
+======================================================================
+FAIL: test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) (route='signup')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yejun/GitHub/Codyssey/B6/B6-3/submission/tests/testweb.py", line 247, in test_non_ascii_csrf_is_rejected_without_server_error
+    self.assertEqual(status, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+AssertionError: 500 != 403
+
+======================================================================
+FAIL: test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) (route='authenticated-action')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/yejun/GitHub/Codyssey/B6/B6-3/submission/tests/testweb.py", line 251, in test_non_ascii_csrf_is_rejected_without_server_error
+    self.assertEqual(status, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+AssertionError: 500 != 403
+
+----------------------------------------------------------------------
+Ran 1 test in 1.234s
+
+FAILED (failures=2)
+
+```

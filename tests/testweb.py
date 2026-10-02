@@ -240,5 +240,17 @@ class WebTests(unittest.TestCase):
         self.assertEqual(other.request('/app/tasks?project_id=' + project_id)[0], 404)
 
 
+    def test_non_ascii_csrf_is_rejected_without_server_error(self):
+        self.assertEqual(self.client.request('/signup')[0], 200)
+        with self.subTest(route='signup'):
+            status = self.client.request('/signup', {'username': 'csrf_probe', 'password': 'practice1234', 'csrf': '가'})[0]
+            self.assertEqual(status, 403)
+        self.client.login()
+        with self.subTest(route='authenticated-action'):
+            status = self.client.request('/app/projects', {'name': '잘못된 토큰', 'csrf': '가'})[0]
+            self.assertEqual(status, 403)
+
+
+
 if __name__ == '__main__':
     unittest.main()
