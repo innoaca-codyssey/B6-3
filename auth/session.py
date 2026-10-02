@@ -12,6 +12,6 @@ def require_session(context=Depends(optional_session)):
     return context
 
 def require_csrf(csrf: str = Form(default=''), context=Depends(require_session)):
-    if not hmac.compare_digest(csrf, context.csrf):
+    if not csrf.isascii() or not context.csrf.isascii() or not hmac.compare_digest(csrf, context.csrf):
         raise Forbidden('화면을 새로고침한 뒤 다시 요청하세요')
     return context

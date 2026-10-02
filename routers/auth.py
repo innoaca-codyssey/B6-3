@@ -26,7 +26,7 @@ def signup_form(request: Request, auth=Depends(optional_session)):
 
 @router.post('/signup')
 def signup(request: Request, username: str = Form(''), password: str = Form(''), csrf: str = Form(''), signup_csrf: str | None = Cookie(default=None), auth=Depends(optional_session), db=Depends(get_db)):
-    if not signup_csrf or not csrf or not hmac.compare_digest(csrf, signup_csrf):
+    if not signup_csrf or not csrf or not csrf.isascii() or not signup_csrf.isascii() or not hmac.compare_digest(csrf, signup_csrf):
         raise Forbidden('회원가입 화면을 다시 열어 주세요')
     try:
         AuthService(db).signup(username, password)

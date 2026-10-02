@@ -236,3 +236,29 @@ Ran 1 test in 1.234s
 FAILED (failures=2)
 
 ```
+
+## CSRF 입력 검증 수정
+
+비ASCII 입력은 hmac.compare_digest 호출 전에 거절하도록 가입 폼과 require_csrf에 ASCII 검사를 추가했습니다. 두 요청 모두 HTTP403으로 처리되며 세션/가입/검색/기존 CRUD를 포함한 검사 12개가 통과했습니다.
+
+```text
+$ .venv/bin/python -W error::ResourceWarning -m unittest discover -s tests -v
+test_anonymous_and_wrong_password (testweb.WebTests.test_anonymous_and_wrong_password) ... ok
+test_complete_workflow_relations_and_idempotent_state (testweb.WebTests.test_complete_workflow_relations_and_idempotent_state) ... ok
+test_csrf_validation_missing_and_escaped_content (testweb.WebTests.test_csrf_validation_missing_and_escaped_content) ... ok
+test_expired_session_and_project_cascade (testweb.WebTests.test_expired_session_and_project_cascade) ... ok
+test_login_ui_cookie_and_hashed_storage (testweb.WebTests.test_login_ui_cookie_and_hashed_storage) ... ok
+test_logout_revokes_replayed_cookie_and_session_rotation (testweb.WebTests.test_logout_revokes_replayed_cookie_and_session_rotation) ... ok
+test_non_ascii_csrf_is_rejected_without_server_error (testweb.WebTests.test_non_ascii_csrf_is_rejected_without_server_error) ... ok
+test_other_member_cannot_read_or_change (testweb.WebTests.test_other_member_cannot_read_or_change) ... ok
+test_relations_persist_after_restart (testweb.WebTests.test_relations_persist_after_restart) ... ok
+test_search_filters_and_member_isolation (testweb.WebTests.test_search_filters_and_member_isolation) ... ok
+test_signup_hash_duplicate_csrf_and_login (testweb.WebTests.test_signup_hash_duplicate_csrf_and_login) ... ok
+test_signup_validation_utf8_limit_and_legacy_password (testweb.WebTests.test_signup_validation_utf8_limit_and_legacy_password) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 6.085s
+
+OK
+
+```
